@@ -35,7 +35,7 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
               setValue(opt.id);
               onSubmit(opt.id);
             }}
-            className={`p-4 text-left border-[3px] border-black transition-all font-bold text-lg ${
+            className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg ${
               value === opt.id 
                 ? 'bg-brand-yellow shadow-brutal-active translate-y-1 translate-x-1' 
                 : 'bg-white shadow-brutal hover:-translate-y-0.5 hover:shadow-brutal-lg'
@@ -64,13 +64,13 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
               key={opt.id}
               type="button"
               onClick={() => toggleOption(opt.id)}
-              className={`p-4 text-left border-[3px] border-black transition-all font-bold text-lg flex items-center gap-3 ${
+              className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg flex items-center gap-3 ${
                 isSelected 
                   ? 'bg-brand-blue shadow-brutal-active translate-y-1 translate-x-1' 
                   : 'bg-white shadow-brutal hover:-translate-y-0.5 hover:shadow-brutal-lg'
               }`}
             >
-              <div className={`w-6 h-6 border-[3px] border-black flex items-center justify-center ${isSelected ? 'bg-black text-white' : 'bg-white'}`}>
+              <div className={`w-5 h-5 md:w-6 md:h-6 shrink-0 border-[2px] md:border-[3px] border-black flex items-center justify-center ${isSelected ? 'bg-black text-white' : 'bg-white'}`}>
                 {isSelected && <span>✓</span>}
               </div>
               {opt.label}

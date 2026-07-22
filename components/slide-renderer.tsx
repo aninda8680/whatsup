@@ -8,8 +8,8 @@ interface SlideRendererProps {
 
 export function SlideRenderer({ slide, showCorrectAnswer = false }: SlideRendererProps) {
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-8 px-4">
-      <h2 className="text-4xl md:text-5xl font-black text-center mb-8 bg-white border-[4px] border-black p-6 shadow-brutal-lg leading-tight w-full">
+    <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-4 md:py-8 px-2 md:px-4">
+      <h2 className="text-2xl md:text-5xl font-black text-center mb-6 md:mb-8 bg-white border-[3px] md:border-[4px] border-black p-4 md:p-6 shadow-brutal-lg leading-tight w-full">
         {slide.prompt}
       </h2>
       
@@ -21,13 +21,13 @@ export function SlideRenderer({ slide, showCorrectAnswer = false }: SlideRendere
             return (
               <div 
                 key={opt.id} 
-                className={`p-4 border-[4px] border-black font-bold text-2xl flex items-center gap-6 ${isCorrect ? 'bg-brand-green shadow-brutal-lg transform -rotate-1 scale-105 z-10' : 'bg-white shadow-brutal'}`}
+                className={`p-3 md:p-4 border-[3px] md:border-[4px] border-black font-bold text-base md:text-2xl flex items-center gap-3 md:gap-6 ${isCorrect ? 'bg-brand-green shadow-brutal-lg transform -rotate-1 scale-105 z-10' : 'bg-white shadow-brutal'}`}
               >
-                <span className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 border-[3px] border-black text-2xl ${isCorrect ? 'bg-black text-white' : 'bg-gray-100'}`}>
+                <span className={`w-8 h-8 md:w-12 md:h-12 flex items-center justify-center rounded-full shrink-0 border-[2px] md:border-[3px] border-black text-lg md:text-2xl ${isCorrect ? 'bg-black text-white' : 'bg-gray-100'}`}>
                   {String.fromCharCode(65 + idx)}
                 </span>
-                <span className="flex-1">{opt.label}</span>
-                {isCorrect && <span className="text-4xl">✅</span>}
+                <span className="flex-1 text-sm md:text-xl">{opt.label}</span>
+                {isCorrect && <span className="text-2xl md:text-4xl">✅</span>}
               </div>
             );
           })}

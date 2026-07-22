@@ -45,7 +45,7 @@ function JoinForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto mt-20">
+    <Card className="w-full max-w-md mx-auto mt-8 md:mt-20 shadow-brutal-lg border-[4px] border-black">
       <CardHeader>
         <CardTitle className="text-3xl text-center">Join Session</CardTitle>
         <CardDescription className="text-center text-lg">Enter the room code on the projector</CardDescription>

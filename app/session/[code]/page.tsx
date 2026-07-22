@@ -199,11 +199,11 @@ export default function SessionPage() {
         <div className="w-full max-w-2xl mx-auto flex flex-col gap-3">
           {leaderboard.map((p, idx) => (
             <div key={p.id} className="flex justify-between items-center bg-white p-4 border-[3px] border-black shadow-brutal text-xl font-bold hover:translate-x-1 transition-transform">
-              <div className="flex items-center gap-4">
-                <span className="w-8 h-8 bg-black text-white flex items-center justify-center rounded-full text-lg">{idx + 1}</span>
-                <span>{p.displayName}</span>
+              <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                <span className="w-8 h-8 bg-black text-white flex items-center justify-center rounded-full text-sm sm:text-lg shrink-0">{idx + 1}</span>
+                <span className="truncate flex-1">{p.displayName}</span>
               </div>
-              <span className="text-brand-pink font-black" style={{ textShadow: '1px 1px 0px black' }}>{p.score || 0} pts</span>
+              <span className="text-brand-pink font-black shrink-0 text-base sm:text-xl" style={{ textShadow: '1px 1px 0px black' }}>{p.score || 0} pts</span>
             </div>
           ))}
           {leaderboard.length === 0 && (
