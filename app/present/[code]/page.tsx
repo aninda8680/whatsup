@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { useSession } from '@/hooks/useSession';
 import { useLiveSlide } from '@/hooks/useLiveSlide';
+import { useLiveTally } from '@/hooks/useLiveTally';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { useServerTime } from '@/hooks/useServerTime';
