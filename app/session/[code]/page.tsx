@@ -218,8 +218,9 @@ export default function SessionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8 overflow-y-auto">
         <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
-          <SlideRenderer slide={currentSlide} />
-          <div className="w-full bg-white border-[4px] border-black shadow-brutal-lg p-6">
+          <SlideRenderer slide={currentSlide} showCorrectAnswer={true} />
+          
+          <div className="w-full bg-white border-[4px] border-black shadow-brutal-lg p-6 mt-4">
             <LiveChart slide={currentSlide} tally={tally} />
           </div>
         </div>

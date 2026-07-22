@@ -163,7 +163,10 @@ export default function PresentPage() {
               </div>
             )}
             
-            <SlideRenderer slide={currentSlide} />
+            <SlideRenderer 
+              slide={currentSlide} 
+              showCorrectAnswer={liveState.slideStatus === 'results_shown'} 
+            />
             
             <div className="w-full max-w-5xl mx-auto px-4 pb-12 flex-1 flex flex-col justify-center min-h-[400px]">
               {(liveState.slideStatus === 'open' || liveState.slideStatus === 'results_shown' || liveState.slideStatus === 'locked') && currentSlide.type !== 'info' && (

@@ -36,10 +36,10 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
               onSubmit(opt.id);
             }}
             className={`p-4 text-left border-[3px] border-black transition-all font-bold text-lg ${
-              value === opt.id || isSubmitting
-                ? 'bg-brand-yellow shadow-brutal-active translate-y-1 translate-x-1 opacity-70' 
+              value === opt.id 
+                ? 'bg-brand-yellow shadow-brutal-active translate-y-1 translate-x-1' 
                 : 'bg-white shadow-brutal hover:-translate-y-0.5 hover:shadow-brutal-lg'
-            }`}
+            } ${isSubmitting && value !== opt.id ? 'opacity-50' : ''}`}
           >
             {opt.label}
           </button>
