@@ -339,3 +339,151 @@ D. Engineering is impossible.
 `;
 
 export const cseStudentsQuestions = parseQuiz(cseStudentsRawText);
+
+const nonCseStudentsRawText = `
+1. What does AI stand for?
+A. Artificial Intelligence ✅
+B. Automatic Internet
+C. Advanced Interface
+D. Artificial Internet
+
+2. Which of these is an example of AI you probably use every day?
+A. Google Maps Navigation ✅
+B. Calculator
+C. Flash Drive
+D. Ceiling Fan
+
+3. AI is useful only for Computer Science students.
+A. True
+B. False ✅
+
+4. Which engineering field can benefit from AI?
+A. Mechanical Engineering
+B. Civil Engineering
+C. Electronics & Communication
+D. All of the above ✅
+
+5. What does ML stand for?
+A. Machine Learning ✅
+B. Machine Language
+C. Mobile Learning
+D. Mechanical Logic
+
+6. Machine Learning mainly learns from...
+A. Data ✅
+B. Internet Speed
+C. Computer Memory
+D. Electricity
+
+7. Which subject is most important for understanding Machine Learning?
+A. Mathematics ✅
+B. Geography
+C. Chemistry
+D. English Literature
+
+8. Which of the following is NOT a core part of Machine Learning?
+A. Statistics
+B. Probability
+C. Linear Algebra
+D. Memorizing Python Syntax ✅
+
+9. Deep Learning is commonly used for...
+A. Image Recognition ✅
+B. File Compression
+C. Battery Charging
+D. Wi-Fi Optimization
+
+10. Which of these can AI help with in engineering?
+A. Predictive Maintenance
+B. Quality Inspection
+C. Design Optimization
+D. All of the above ✅
+
+11. A good engineer should use AI to...
+A. Replace all thinking
+B. Assist decision-making and learning ✅
+C. Skip learning
+D. Complete exams automatically
+
+12. What is a prompt?
+A. An instruction given to an AI ✅
+B. A programming language
+C. A software update
+D. A computer virus
+
+13. Which prompt is likely to produce the better answer?
+A. Explain Machine Learning.
+B. Explain Machine Learning to a first-year Mechanical Engineering student using simple examples. ✅
+
+14. Why is context important while using AI?
+A. It helps AI understand your request better. ✅
+B. It makes the internet faster.
+C. It improves battery life.
+D. It increases storage space.
+
+15. Which question provides better context?
+A. My machine isn't working.
+B. My CNC machine is showing vibration during operation after replacing the bearings. ✅
+
+16. AI-generated answers should always be...
+A. Accepted immediately
+B. Verified before using ✅
+C. Copied without reading
+D. Shared without checking
+
+17. Which habit is most important for becoming a good engineer?
+A. Consistent learning ✅
+B. Waiting until exams
+C. Memorizing without understanding
+D. Avoiding new technology
+
+18. Which statement best describes AI?
+A. AI is a tool that helps humans work more efficiently. ✅
+B. AI knows everything.
+C. AI never makes mistakes.
+D. AI can replace all human judgment.
+
+19. Which of these is an AI-powered application?
+A. ChatGPT
+B. Google Translate
+C. Google Maps
+D. All of the above ✅
+
+20. Which branch is AI increasingly being used in?
+A. Smart Manufacturing
+B. Smart Cities
+C. Healthcare
+D. All of the above ✅
+
+21. Which statement is TRUE?
+A. AI always gives correct answers.
+B. AI can make mistakes, so verification is important. ✅
+C. AI removes the need to learn.
+D. AI only works with coding.
+
+22. Which quality is more valuable than being naturally talented?
+A. Consistency ✅
+B. Expensive Laptop
+C. High Internet Speed
+D. More Social Media Followers
+
+23. If AI solves a problem for you, what should you do next?
+A. Understand how the solution works ✅
+B. Submit it immediately
+C. Memorize the answer only
+D. Ignore the explanation
+
+24. Which of the following is the best use of AI for students?
+A. Learning difficult concepts ✅
+B. Copying assignments without reading
+C. Avoiding classes
+D. Depending on AI for every decision
+
+25. Final Takeaway: After today's session, what is the most important message?
+A. AI will replace engineers.
+B. Only CSE students need AI.
+C. Use AI as a tool, keep learning, and think critically. ✅
+D. AI is only useful for writing assignments.
+`;
+
+export const nonCseStudentsQuestions = parseQuiz(nonCseStudentsRawText);
