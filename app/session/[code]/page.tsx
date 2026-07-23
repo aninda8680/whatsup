@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { auth, db, rtdb } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -8,8 +8,8 @@ import { useSession } from '@/hooks/useSession';
 import { useLiveSlide } from '@/hooks/useLiveSlide';
 import { useServerTime } from '@/hooks/useServerTime';
 import { useLiveTally } from '@/hooks/useLiveTally';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, increment, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { ref, runTransaction, set, get } from 'firebase/database';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, increment, getDoc } from 'firebase/firestore';
+import { ref, runTransaction, set, onDisconnect, onValue } from 'firebase/database';
 import { ResponseInput } from '@/components/response-input';
 import { Card } from '@/components/ui/card';
 import { SlideRenderer } from '@/components/slide-renderer';
@@ -23,6 +23,8 @@ export default function SessionPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [initLoading, setInitLoading] = useState(true);
   const [error, setError] = useState('');
+  // Ref to track if we've set up presence for this session (avoid duplicate setup on re-renders)
+  const presenceSetupRef = useRef<string | null>(null);
   
   const { session, slides, loading: sessionLoading } = useSession(sessionId);
   const { liveState, loading: liveLoading } = useLiveSlide(sessionId);
@@ -34,6 +36,7 @@ export default function SessionPage() {
   const [timeLeft, setTimeLeft] = useState(10);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
+  // Timer — 250ms interval is plenty for a 1-second display resolution
   useEffect(() => {
     if (liveState.slideStatus !== 'open' || !liveState.slideStartTime) return;
     const interval = setInterval(() => {
@@ -43,61 +46,127 @@ export default function SessionPage() {
     return () => clearInterval(interval);
   }, [liveState.slideStatus, liveState.slideStartTime, serverTimeOffset]);
 
+  // Leaderboard — use a one-time getDocs instead of onSnapshot to avoid
+  // 90 participant docs re-firing every time any participant doc changes
   useEffect(() => {
     if (liveState.slideStatus !== 'leaderboard' || !sessionId) return;
-    const q = query(collection(db, 'sessions', sessionId, 'participants'));
-    const unsub = onSnapshot(q, (snap) => {
-      const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
-      setLeaderboard(participants.slice(0, 10));
-    });
-    return () => unsub();
+    
+    const fetchLeaderboard = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'sessions', sessionId, 'participants'));
+        const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        setLeaderboard(participants.slice(0, 10));
+      } catch (err) {
+        console.error("Failed to fetch leaderboard", err);
+      }
+    };
+    fetchLeaderboard();
   }, [liveState.slideStatus, sessionId]);
 
-  // 1. Resolve code to sessionId and register participant
+  // 1. Resolve code → sessionId, register participant, set up presence
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push(`/join?code=${code}`);
         return;
       }
 
       try {
-        const name = sessionStorage.getItem('participantName') || 'Anonymous';
+        // Recover name from localStorage (survives refresh, unlike sessionStorage)
+        const name = localStorage.getItem('participantName') || 'Anonymous';
 
-        // Find session by code
-        const sessionsRef = collection(db, 'sessions');
-        const q = query(sessionsRef, where('code', '==', code));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-          setError('Session not found or has ended.');
-          setInitLoading(false);
-          return;
+        // --- SESSION ID CACHING ---
+        // Check localStorage cache first to avoid a Firestore query on every page load.
+        // Cache key includes the code so different sessions don't conflict.
+        const cacheKey = `sessionId_${code}`;
+        let sId = localStorage.getItem(cacheKey);
+
+        if (!sId) {
+          // Cache miss — query Firestore (only happens once per student per session)
+          const sessionsRef = collection(db, 'sessions');
+          const q = query(sessionsRef, where('code', '==', code));
+          const querySnapshot = await getDocs(q);
+          
+          if (querySnapshot.empty) {
+            setError('Session not found or has ended.');
+            setInitLoading(false);
+            return;
+          }
+          sId = querySnapshot.docs[0].id;
+          localStorage.setItem(cacheKey, sId);
+        } else {
+          // Cache hit — validate the session still exists (lightweight single-doc read)
+          const sessionDoc = await getDoc(doc(db, 'sessions', sId));
+          if (!sessionDoc.exists()) {
+            // Session was deleted — clear cache and show error
+            localStorage.removeItem(cacheKey);
+            setError('Session not found or has ended.');
+            setInitLoading(false);
+            return;
+          }
         }
 
-        const sessionDoc = querySnapshot.docs[0];
-        const sId = sessionDoc.id;
         setSessionId(sId);
 
-        // Register participant in Firestore
+        // Register / update participant in Firestore (merge so we don't overwrite score)
         await setDoc(doc(db, 'sessions', sId, 'participants', user.uid), {
           displayName: name,
-          lastActive: serverTimestamp()
+          lastActive: serverTimestamp(),
         }, { merge: true });
+
+        // --- PRESENCE TRACKING ---
+        // Only set up presence once per session to avoid duplicate count increments
+        if (presenceSetupRef.current !== sId) {
+          presenceSetupRef.current = sId;
+
+          const userPresenceRef = ref(rtdb, `live/${sId}/presence/${user.uid}`);
+          const connectedRef = ref(rtdb, '.info/connected');
+
+          // When connected: write presence node; on disconnect: auto-remove it (server-side)
+          const unsubConnected = onValue(connectedRef, async (snap) => {
+            if (snap.val() === true) {
+              await onDisconnect(userPresenceRef).remove();
+              await set(userPresenceRef, true);
+            }
+          });
+
+          // Count the presence nodes and keep participantCount in sync
+          const presenceRef = ref(rtdb, `live/${sId}/presence`);
+          const unsubPresence = onValue(presenceRef, async (snap) => {
+            const presenceData = snap.val() || {};
+            const count = Object.keys(presenceData).length;
+            try {
+              await set(ref(rtdb, `live/${sId}/participantCount`), count);
+            } catch {
+              // Non-critical — presenter counter might lag slightly
+            }
+          });
+
+          // Cleanup presence listeners when this component unmounts
+          return () => {
+            unsubConnected();
+            unsubPresence();
+          };
+        }
 
         setInitLoading(false);
       } catch (err: any) {
         console.error(err);
-        setError('Failed to initialize session.');
+        setError('Failed to initialize session. Please refresh.');
         setInitLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, [code, router]);
 
-  const handleSubmitResponse = async (value: any) => {
+  // Clear initLoading once sessionId is confirmed
+  useEffect(() => {
+    if (sessionId) setInitLoading(false);
+  }, [sessionId]);
+
+  const handleSubmitResponse = useCallback(async (value: any) => {
     if (!sessionId || !liveState.currentSlideId || !auth.currentUser) return;
     
     setSubmitting(true);
@@ -105,51 +174,58 @@ export default function SessionPage() {
     const uid = auth.currentUser.uid;
     
     try {
-      // Check if already responded in RTDB
-      const responseRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/responses/${uid}`);
-      const responseSnap = await get(responseRef);
-      
-      if (responseSnap.exists()) {
-        setSubmittedSlideIds(prev => new Set(prev).add(slideId));
-        setSubmitting(false);
-        return; // Already submitted
-      }
-
-      // Write to tally in RTDB transactionally
-      const tallyRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/tally`);
-      
       const currentSlide = slides.find(s => s.id === slideId);
       if (!currentSlide) throw new Error("Slide not found");
 
+      // --- SINGLE-TRANSACTION DEDUP + RESPONSE SET ---
+      // One transaction on responses/{uid} atomically checks + sets, replacing the old
+      // get() + separate set() pattern (which was 2 round-trips per student).
+      const responseRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/responses/${uid}`);
+      let alreadySubmitted = false;
+
+      await runTransaction(responseRef, (currentValue) => {
+        if (currentValue !== null) {
+          alreadySubmitted = true;
+          return currentValue; // Abort: return existing value unchanged
+        }
+        return value; // Commit: write the response
+      });
+
+      if (alreadySubmitted) {
+        setSubmittedSlideIds(prev => new Set(prev).add(slideId));
+        setSubmitting(false);
+        return;
+      }
+
+      // Update tally in RTDB transactionally
+      const tallyRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/tally`);
       await runTransaction(tallyRef, (currentTally) => {
-        let tally = currentTally || {};
+        let t = currentTally || {};
         
         if (currentSlide.type === 'mcq_single') {
-          tally[value] = (tally[value] || 0) + 1;
+          t[value] = (t[value] || 0) + 1;
         } else if (currentSlide.type === 'mcq_multi') {
           (value as string[]).forEach(v => {
-            tally[v] = (tally[v] || 0) + 1;
+            t[v] = (t[v] || 0) + 1;
           });
         } else if (currentSlide.type === 'wordcloud') {
           const word = (value as string).toLowerCase().trim();
-          tally[word] = (tally[word] || 0) + 1;
+          t[word] = (t[word] || 0) + 1;
         } else if (currentSlide.type === 'rating') {
-          tally[value] = (tally[value] || 0) + 1;
-          tally.sum = (tally.sum || 0) + parseInt(value);
-          tally.n = (tally.n || 0) + 1;
+          t[value] = (t[value] || 0) + 1;
+          t.sum = (t.sum || 0) + parseInt(value);
+          t.n = (t.n || 0) + 1;
         }
         
-        return tally;
+        return t;
       });
 
-      // Mark as responded
-      await set(responseRef, value);
-      
+      // Score calculation (correct MCQ answers within time limit)
       let points = 0;
       if (currentSlide.correctOptionId && value === currentSlide.correctOptionId && liveState.slideStartTime) {
         const timeTaken = getServerTime() - liveState.slideStartTime;
         if (timeTaken <= 10000 && timeTaken > 0) {
-           points = Math.round(25 * (10000 - timeTaken) / 10000);
+          points = Math.round(25 * (10000 - timeTaken) / 10000);
         }
       }
 
@@ -161,17 +237,19 @@ export default function SessionPage() {
       setSubmittedSlideIds(prev => new Set(prev).add(slideId));
     } catch (err) {
       console.error("Error submitting response", err);
-      alert("Failed to submit response.");
+      // Non-blocking inline error — no alert() which freezes mobile browsers
+      setError('Failed to submit. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [sessionId, liveState.currentSlideId, liveState.slideStartTime, slides, getServerTime]);
 
   if (initLoading || sessionLoading || liveLoading) {
     return <div className="min-h-screen bg-brand-blue flex items-center justify-center font-black text-2xl border-[8px] border-black m-4 shadow-brutal-lg">LOADING...</div>;
   }
 
-  if (error) {
+  if (error && !sessionId) {
     return <div className="min-h-screen bg-brand-pink p-8 flex flex-col items-center justify-center">
       <Card className="p-8 text-center max-w-md">
         <h1 className="text-4xl font-black mb-4">Oops!</h1>
@@ -242,10 +320,16 @@ export default function SessionPage() {
         <div className="bg-white text-black px-3 py-1 text-sm border-2 border-black">Code: {code}</div>
       </div>
       
+      {/* Inline submission error — non-blocking, auto-clears after 3s */}
+      {error && (
+        <div className="bg-brand-pink text-black font-bold text-center py-2 px-4 border-b-2 border-black">
+          {error}
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto p-4 flex flex-col max-w-2xl mx-auto w-full">
-        {/* We reuse SlideRenderer for the prompt, maybe we don't need the options rendered there for participant */}
         <div className="mb-8 mt-4">
-           <h2 className="text-2xl md:text-3xl font-black mb-4 bg-white border-[3px] border-black p-4 shadow-brutal leading-tight w-full">
+          <h2 className="text-2xl md:text-3xl font-black mb-4 bg-white border-[3px] border-black p-4 shadow-brutal leading-tight w-full">
             {currentSlide.prompt}
           </h2>
         </div>
@@ -257,8 +341,8 @@ export default function SessionPage() {
           </Card>
         ) : timeLeft === 0 ? (
           <Card className="p-12 text-center shadow-brutal-lg bg-brand-yellow border-[4px] border-black mt-8">
-            <h1 className="text-4xl font-black mb-4 text-black">Time's Up!</h1>
-            <p className="text-xl font-bold text-black">You didn't answer in time.</p>
+            <h1 className="text-4xl font-black mb-4 text-black">Time&apos;s Up!</h1>
+            <p className="text-xl font-bold text-black">You didn&apos;t answer in time.</p>
           </Card>
         ) : (
           <>

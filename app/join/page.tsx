@@ -14,7 +14,13 @@ function JoinForm() {
   const prefillCode = searchParams.get('code') || '';
   
   const [code, setCode] = useState(prefillCode);
-  const [name, setName] = useState('');
+  // Pre-fill name from localStorage so returning students don't have to retype
+  const [name, setName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('participantName') || '';
+    }
+    return '';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,13 +35,13 @@ function JoinForm() {
 
     setLoading(true);
     try {
-      // 1. Authenticate anonymously
+      // 1. Authenticate anonymously (persists across refreshes via IndexedDB)
       await signInAnonymously(auth);
       
-      // 2. Save name locally
-      sessionStorage.setItem('participantName', name);
+      // 2. Save name in localStorage (survives tab close/refresh, unlike sessionStorage)
+      localStorage.setItem('participantName', name.trim());
       
-      // 3. Redirect to session (in a real app, we'd verify the code exists in Firestore first)
+      // 3. Redirect to session
       router.push(`/session/${code.toUpperCase()}`);
     } catch (err: any) {
       console.error(err);
@@ -93,3 +99,4 @@ export default function JoinPage() {
     </div>
   );
 }
+

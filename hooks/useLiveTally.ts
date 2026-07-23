@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rtdb } from '@/lib/firebase';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 
 export function useLiveTally(sessionId: string | null, slideId: string | null) {
   const [tally, setTally] = useState<Record<string, any>>({});
@@ -15,7 +15,8 @@ export function useLiveTally(sessionId: string | null, slideId: string | null) {
 
     const tallyRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/tally`);
 
-    onValue(tallyRef, (snapshot) => {
+    // onValue returns an unsubscribe function — use it for cleanup
+    const unsubscribe = onValue(tallyRef, (snapshot) => {
       const data = snapshot.val();
       setTally(data || {});
       setLoading(false);
@@ -24,10 +25,9 @@ export function useLiveTally(sessionId: string | null, slideId: string | null) {
       setLoading(false);
     });
 
-    return () => {
-      off(tallyRef);
-    };
+    return () => unsubscribe();
   }, [sessionId, slideId]);
 
   return { tally, loading };
 }
+

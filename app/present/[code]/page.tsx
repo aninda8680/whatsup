@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { useSession } from '@/hooks/useSession';
 import { useLiveSlide } from '@/hooks/useLiveSlide';
 import { useLiveTally } from '@/hooks/useLiveTally';
-import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { useServerTime } from '@/hooks/useServerTime';
 import { SlideRenderer } from '@/components/slide-renderer';
@@ -28,26 +28,31 @@ export default function PresentPage() {
   const [timeLeft, setTimeLeft] = useState(10);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  // Timer Effect
+  // Timer — 250ms interval is plenty for a 1-second countdown display
   useEffect(() => {
     if (liveState.slideStatus !== 'open' || !liveState.slideStartTime) return;
     const interval = setInterval(() => {
       const elapsed = Date.now() + serverTimeOffset - liveState.slideStartTime!;
       setTimeLeft(Math.max(0, 10 - Math.floor(elapsed / 1000)));
-    }, 100);
+    }, 250);
     return () => clearInterval(interval);
   }, [liveState.slideStatus, liveState.slideStartTime, serverTimeOffset]);
 
-  // Leaderboard Effect
+  // Leaderboard — one-time fetch instead of onSnapshot to avoid
+  // 90+ reactive reads firing on every score update
   useEffect(() => {
     if (liveState.slideStatus !== 'leaderboard' || !sessionId) return;
-    const q = query(collection(db, 'sessions', sessionId, 'participants'));
-    const unsub = onSnapshot(q, (snap) => {
-      const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
-      setLeaderboard(participants.slice(0, 10));
-    });
-    return () => unsub();
+    const fetchLeaderboard = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'sessions', sessionId, 'participants'));
+        const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        setLeaderboard(participants.slice(0, 10));
+      } catch (err) {
+        console.error('Failed to fetch leaderboard', err);
+      }
+    };
+    fetchLeaderboard();
   }, [liveState.slideStatus, sessionId]);
 
   useEffect(() => {

@@ -34,8 +34,11 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Fetch all sessions (so the seeded ones show up too)
-      const q = query(collection(db, 'sessions'));
+      // Fetch only this admin's sessions (not everyone's)
+      const q = query(
+        collection(db, 'sessions'),
+        where('ownerUid', '==', user.uid)
+      );
       try {
         const snap = await getDocs(q);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));

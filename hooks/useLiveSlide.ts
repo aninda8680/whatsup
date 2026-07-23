@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rtdb } from '@/lib/firebase';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 
 export interface LiveSessionState {
   currentSlideId: string | null;
@@ -25,7 +25,9 @@ export function useLiveSlide(sessionId: string | null) {
 
     const liveRef = ref(rtdb, `live/${sessionId}`);
 
-    onValue(liveRef, (snapshot) => {
+    // onValue returns an unsubscribe function — use it for cleanup
+    // instead of off(liveRef) which would detach ALL listeners on this path
+    const unsubscribe = onValue(liveRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setLiveState({
@@ -34,6 +36,9 @@ export function useLiveSlide(sessionId: string | null) {
           participantCount: data.participantCount || 0,
           slideStartTime: data.slideStartTime || undefined,
         });
+      } else {
+        // RTDB node was cleared (session ended) — reset to default
+        setLiveState({ currentSlideId: null, slideStatus: "locked", participantCount: 0 });
       }
       setLoading(false);
     }, (err) => {
@@ -41,10 +46,9 @@ export function useLiveSlide(sessionId: string | null) {
       setLoading(false);
     });
 
-    return () => {
-      off(liveRef);
-    };
+    return () => unsubscribe();
   }, [sessionId]);
 
   return { liveState, loading };
 }
+
