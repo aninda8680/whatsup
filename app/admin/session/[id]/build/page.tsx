@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Session, Slide } from '@/hooks/useSession';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function SessionBuildPage() {
   const params = useParams();
@@ -118,6 +119,22 @@ export default function SessionBuildPage() {
             <Button onClick={handleSave} variant="primary" disabled={saving} size="lg">
               {saving ? 'Saving...' : 'Save All'}
             </Button>
+          </div>
+        </div>
+
+        <div className="bg-brand-yellow p-12 border-[4px] border-black shadow-brutal flex flex-col md:flex-row justify-around items-center gap-12 min-h-[85vh]">
+          <div className="flex flex-col gap-6 text-center md:text-left">
+            <h2 className="text-5xl font-black mb-4">Waiting for players?</h2>
+            <div>
+              <p className="text-3xl font-bold mb-4">Join with code:</p>
+              <div className="bg-white px-10 py-6 border-[6px] border-black tracking-widest text-7xl font-black inline-block shadow-brutal">
+                {session.code}
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-800 mt-6">or scan the QR code to join directly</p>
+          </div>
+          <div className="bg-white p-8 border-[8px] border-black shadow-brutal transform rotate-3">
+            <QRCodeSVG value={typeof window !== 'undefined' ? `${window.location.origin}/join?code=${session.code}` : ''} size={400} />
           </div>
         </div>
 
