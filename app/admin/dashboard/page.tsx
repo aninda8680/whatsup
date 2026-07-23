@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Session } from '@/hooks/useSession';
 import Link from 'next/link';
-import { cseecemeQuestions } from '@/lib/question-banks';
+import { cseecemeQuestions, cseStudentsQuestions } from '@/lib/question-banks';
 
 function generateShortCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, [router]);
 
-  const handleCreateSession = async (bankId: 'blank' | 'cseeceme') => {
+  const handleCreateSession = async (bankId: 'blank' | 'cseeceme' | 'csestudents') => {
     const user = auth.currentUser;
     if (!user) return;
     
@@ -64,9 +64,13 @@ export default function AdminDashboard() {
     try {
       const code = generateShortCode(); // In a real app, retry if collision
       
+      let title = `New Session ${new Date().toLocaleDateString()}`;
+      if (bankId === 'cseeceme') title = `Freshers Orientation Quiz 🎉`;
+      if (bankId === 'csestudents') title = `CSE Students Quiz 🎉`;
+      
       const newSession = {
         code,
-        title: bankId === 'cseeceme' ? `Freshers Orientation Quiz 🎉` : `New Session ${new Date().toLocaleDateString()}`,
+        title,
         ownerUid: user.uid,
         status: 'draft',
         currentSlideIndex: 0,
@@ -79,9 +83,10 @@ export default function AdminDashboard() {
 
       const docRef = await addDoc(collection(db, 'sessions'), newSession);
 
-      if (bankId === 'cseeceme') {
-        for (let i = 0; i < cseecemeQuestions.length; i++) {
-          const slide = cseecemeQuestions[i];
+      if (bankId === 'cseeceme' || bankId === 'csestudents') {
+        const questions = bankId === 'csestudents' ? cseStudentsQuestions : cseecemeQuestions;
+        for (let i = 0; i < questions.length; i++) {
+          const slide = questions[i];
           const newSlide = {
             ...slide,
             id: `slide_${i}`,
@@ -174,6 +179,9 @@ export default function AdminDashboard() {
               </Button>
               <Button onClick={() => handleCreateSession('cseeceme')} variant="primary" size="lg" className="w-full text-left justify-start py-6">
                 🎉 CSE/ECE/ME Orientation Quiz
+              </Button>
+              <Button onClick={() => handleCreateSession('csestudents')} variant="primary" size="lg" className="w-full text-left justify-start py-6 bg-brand-pink text-black border-[3px] border-black hover:bg-black hover:text-white transition-all shadow-brutal hover:translate-x-1 hover:translate-y-1 hover:shadow-none">
+                💻 CSE Students Quiz
               </Button>
             </div>
             <Button onClick={() => setShowBankModal(false)} variant="default" className="w-full mt-6">

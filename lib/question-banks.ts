@@ -193,3 +193,149 @@ function parseQuiz(text: string): Partial<Slide>[] {
 }
 
 export const cseecemeQuestions = parseQuiz(rawText);
+
+const cseStudentsRawText = `
+1. What does AI stand for?
+A. Artificial Intelligence ✅
+B. Automatic Internet
+C. Alien Instructor
+D. Advanced Instagram
+
+2. Which of these is an example of AI you probably use every day?
+A. Google Maps Navigation ✅
+B. A Water Bottle
+C. Ceiling Fan
+D. Notebook
+
+3. AI will replace everyone tomorrow.
+A. True
+B. False ✅
+
+4. If AI becomes smarter than humans tomorrow, what's your backup plan?
+A. Farming
+B. Open a Tea Stall
+C. Become an Influencer
+D. None of the above because AI isn't taking over tomorrow ✅
+
+5. What does ML stand for?
+A. Machine Learning ✅
+B. Machine Language
+C. Mobile Learning
+D. Mega Logic
+
+6. Which subject is MOST important for Machine Learning?
+A. Mathematics ✅
+B. Geography
+C. History
+D. Drawing
+
+7. Which branch of mathematics is heavily used in ML?
+A. Statistics ✅
+B. Sanskrit
+C. Civics
+D. Physical Education
+
+8. Knowing only Python makes you an ML Engineer.
+A. True
+B. False ✅
+
+9. Which skill is NOT required for ML?
+A. Problem Solving
+B. Mathematics
+C. Logical Thinking
+D. Memorizing Bollywood Songs ✅
+
+10. Deep Learning is mostly used for...
+A. Face Recognition ✅
+B. Making Coffee
+C. Playing Cricket
+D. Charging Phones
+
+11. MediaPipe can detect...
+A. Hand Gestures ✅
+B. Your Exam Marks
+C. Future Salary
+D. Wi-Fi Password
+
+12. What's more important than being a genius?
+A. Consistency ✅
+B. Luck
+C. Expensive Laptop
+D. RGB Keyboard
+
+13. If ChatGPT writes every assignment for you...
+A. You'll learn faster
+B. Your thinking skills may become weaker ✅
+C. Teachers become happier
+D. You'll become an AI Engineer instantly
+
+14. Which statement is better?
+A. Never use AI.
+B. Use AI wisely. ✅
+C. AI is cheating.
+D. AI knows everything.
+
+15. Technology changes...
+A. Every few years
+B. Almost every day ✅
+C. Never
+D. Only before exams
+
+16. Which AI tool have you probably heard about the most?
+A. ChatGPT ✅
+B. MS Paint
+C. VLC
+D. Calculator
+
+17. What's a Prompt?
+A. Instructions given to AI ✅
+B. A Password
+C. A Programming Language
+D. A Virus
+
+18. Which prompt will likely give a better answer?
+A. Explain AI.
+B. Explain AI to a first-year engineering student with simple examples. ✅
+
+19. Why is context important?
+A. It helps AI understand your situation better. ✅
+B. It makes Wi-Fi faster.
+C. It increases RAM.
+D. It changes your keyboard color.
+
+20. Which question gives more context?
+A. I have a red mark.
+B. A mosquito bit my face yesterday and now I have a red mark. ✅
+
+21. An engineer should trust AI answers...
+A. Always
+B. Never
+C. Only after verifying them ✅
+D. Only if ChatGPT says so
+
+22. Which habit makes someone a better engineer?
+A. Copy-paste everything
+B. Ask "Why?" and verify answers ✅
+C. Memorize code
+D. Ignore documentation
+
+23. GitHub is best described as...
+A. Google Drive for Code ✅
+B. Instagram for Developers
+C. A Search Engine
+D. A Programming Language
+
+24. What is the BEST way to become good at programming?
+A. Watch 300 tutorials
+B. Build Projects ✅
+C. Buy an expensive laptop
+D. Change keyboard every month
+
+25. Final Question: What is the biggest takeaway from today's session?
+A. AI will replace me.
+B. Python is enough.
+C. Keep learning, think critically, and use AI as a tool. ✅
+D. Engineering is impossible.
+`;
+
+export const cseStudentsQuestions = parseQuiz(cseStudentsRawText);
