@@ -166,20 +166,21 @@ export default function SessionPage() {
     if (sessionId) setInitLoading(false);
   }, [sessionId]);
 
+  const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
+
   const handleSubmitResponse = useCallback(async (value: any) => {
     if (!sessionId || !liveState.currentSlideId || !auth.currentUser) return;
     
     setSubmitting(true);
     const slideId = liveState.currentSlideId;
     const uid = auth.currentUser.uid;
+    const participantName = localStorage.getItem('participantName') || 'Anonymous';
     
     try {
       const currentSlide = slides.find(s => s.id === slideId);
       if (!currentSlide) throw new Error("Slide not found");
 
       // --- SINGLE-TRANSACTION DEDUP + RESPONSE SET ---
-      // One transaction on responses/{uid} atomically checks + sets, replacing the old
-      // get() + separate set() pattern (which was 2 round-trips per student).
       const responseRef = ref(rtdb, `live/${sessionId}/slides/${slideId}/responses/${uid}`);
       let alreadySubmitted = false;
 
@@ -193,6 +194,7 @@ export default function SessionPage() {
 
       if (alreadySubmitted) {
         setSubmittedSlideIds(prev => new Set(prev).add(slideId));
+        setUserAnswers(prev => ({ ...prev, [slideId]: value }));
         setSubmitting(false);
         return;
       }
@@ -203,10 +205,20 @@ export default function SessionPage() {
         let t = currentTally || {};
         
         if (currentSlide.type === 'mcq_single') {
-          t[value] = (t[value] || 0) + 1;
+          t[value] = t[value] || [];
+          if (Array.isArray(t[value])) {
+            t[value].push(participantName);
+          } else {
+            t[value] = [participantName]; // Fallback if it was a number
+          }
         } else if (currentSlide.type === 'mcq_multi') {
           (value as string[]).forEach(v => {
-            t[v] = (t[v] || 0) + 1;
+            t[v] = t[v] || [];
+            if (Array.isArray(t[v])) {
+              t[v].push(participantName);
+            } else {
+              t[v] = [participantName];
+            }
           });
         } else if (currentSlide.type === 'wordcloud') {
           const word = (value as string).toLowerCase().trim();
@@ -235,6 +247,7 @@ export default function SessionPage() {
       }
       
       setSubmittedSlideIds(prev => new Set(prev).add(slideId));
+      setUserAnswers(prev => ({ ...prev, [slideId]: value }));
     } catch (err) {
       console.error("Error submitting response", err);
       // Non-blocking inline error — no alert() which freezes mobile browsers
@@ -296,7 +309,11 @@ export default function SessionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8 overflow-y-auto">
         <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
-          <SlideRenderer slide={currentSlide} showCorrectAnswer={true} />
+          <SlideRenderer 
+            slide={currentSlide} 
+            showCorrectAnswer={true} 
+            userAnswer={userAnswers[currentSlide.id]}
+          />
         </div>
       </div>
     );

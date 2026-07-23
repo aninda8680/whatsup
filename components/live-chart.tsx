@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -7,7 +7,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell
+  Cell,
+  LabelList
 } from 'recharts';
 import { Slide } from '@/hooks/useSession';
 
@@ -19,30 +20,93 @@ interface LiveChartProps {
 // Vibrant colors for the charts
 const COLORS = ['#ffde59', '#5ce1e6', '#ff66c4', '#7ed957', '#ff914d', '#a388ff', '#ff3131'];
 
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white border-[2px] border-black px-4 py-2 shadow-brutal text-center rounded-sm">
+        <p className="font-black text-xl">Count: {data.count}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function LiveChart({ slide, tally }: LiveChartProps) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+
   if (!slide || !tally) return null;
 
   if (slide.type === 'mcq_single' || slide.type === 'mcq_multi') {
-    const data = (slide.options || []).map((opt, index) => ({
-      name: opt.label,
-      shortName: String.fromCharCode(65 + index), // A, B, C, D...
-      count: tally[opt.id] || 0,
-    }));
+    const data = (slide.options || []).map((opt, index) => {
+      const tallyData = tally[opt.id];
+      let namesArray: string[] = [];
+      let count = 0;
+      if (Array.isArray(tallyData)) {
+        namesArray = tallyData;
+        count = namesArray.length;
+      } else if (typeof tallyData === 'number') {
+        count = tallyData;
+      }
+
+      return {
+        id: opt.id,
+        name: opt.label.replace(/^[A-D]\.\s*/, ''),
+        shortName: String.fromCharCode(65 + index), // A, B, C, D...
+        count: count,
+        names: namesArray,
+      };
+    });
 
     return (
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <BarChart 
+            data={data} 
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ccc" />
             <XAxis dataKey="shortName" tick={{ fill: 'black', fontWeight: 'bold' }} interval={0} />
             <YAxis allowDecimals={false} tick={{ fill: 'black', fontWeight: 'bold' }} />
-            <Tooltip
-              cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-              contentStyle={{ border: '3px solid black', borderRadius: 0, boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}
-            />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]} stroke="black" strokeWidth={3}>
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} offset={50} />
+            <Bar 
+              dataKey="count" 
+              radius={[4, 4, 0, 0]} 
+              stroke="black" 
+              strokeWidth={3}
+              label={(props: any) => {
+                const { x, y, width, height, index } = props;
+                if (index !== activeIndex) return null;
+                const names = data[index]?.names || [];
+                if (!names.length) return null;
+
+                const cx = x + width / 2;
+                return (
+                  <text 
+                    x={cx} 
+                    y={Math.max(y + 12, 16)} 
+                    fill="black" 
+                    textAnchor="middle" 
+                    dominantBaseline="hanging"
+                    className="font-black text-sm md:text-base z-10"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {names.map((name: string, i: number) => (
+                      <tspan x={cx} dy={i === 0 ? 0 : 20} key={i}>
+                        {name}
+                      </tspan>
+                    ))}
+                  </text>
+                );
+              }}
+            >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={COLORS[index % COLORS.length]} 
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onMouseLeave={() => setActiveIndex(-1)}
+                />
               ))}
             </Bar>
           </BarChart>

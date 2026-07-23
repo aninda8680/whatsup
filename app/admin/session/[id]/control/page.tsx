@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db, rtdb } from '@/lib/firebase';
-import { doc, updateDoc, serverTimestamp as firestoreServerTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp as firestoreServerTimestamp, collection, getDocs } from 'firebase/firestore';
 import { ref, set, update, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/useSession';
@@ -21,6 +21,23 @@ export default function SessionControlPage() {
   const { session, slides, loading: sessionLoading } = useSession(sessionId);
   const { liveState, loading: liveLoading } = useLiveSlide(sessionId);
   const { tally } = useLiveTally(sessionId, liveState.currentSlideId);
+
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (liveState.slideStatus !== 'leaderboard' || !sessionId) return;
+    const fetchLeaderboard = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'sessions', sessionId, 'participants'));
+        const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        setLeaderboard(participants.slice(0, 10));
+      } catch (err) {
+        console.error('Failed to fetch leaderboard', err);
+      }
+    };
+    fetchLeaderboard();
+  }, [liveState.slideStatus, sessionId]);
 
   const handleStartSession = async () => {
     if (!session || slides.length === 0) return;
@@ -118,9 +135,30 @@ export default function SessionControlPage() {
                 Session is not live.<br/>Click 'Start Session' to broadcast.
               </div>
             </div>
+          ) : liveState.slideStatus === 'leaderboard' ? (
+            <div className="flex-1 flex flex-col items-center p-8 bg-brand-yellow overflow-y-auto border-[4px] border-black shadow-brutal">
+              <h1 className="text-4xl font-black mb-8 border-[4px] border-black p-4 bg-white shadow-brutal transform -rotate-1">🏆 Leaderboard</h1>
+              <div className="w-full max-w-2xl flex flex-col gap-4">
+                {leaderboard.map((p, idx) => (
+                  <div key={p.id} className="flex justify-between items-center bg-white p-4 border-[3px] border-black shadow-brutal text-2xl font-bold">
+                    <div className="flex items-center gap-4">
+                      <span className="w-10 h-10 bg-black text-white flex items-center justify-center rounded-full text-xl">{idx + 1}</span>
+                      <span>{p.displayName}</span>
+                    </div>
+                    <span className="text-brand-pink font-black" style={{ textShadow: '1px 1px 0px black' }}>{p.score || 0} pts</span>
+                  </div>
+                ))}
+                {leaderboard.length === 0 && (
+                  <div className="text-center font-bold text-xl p-8 bg-white border-[3px] border-black">No scores yet!</div>
+                )}
+              </div>
+            </div>
           ) : currentSlide ? (
             <div className="flex-1 flex flex-col">
-              <SlideRenderer slide={currentSlide} />
+              <SlideRenderer 
+                slide={currentSlide} 
+                showCorrectAnswer={liveState.slideStatus === 'results_shown'} 
+              />
               <div className="mt-8 flex-1">
                 <LiveChart slide={currentSlide} tally={tally} />
               </div>
@@ -188,7 +226,13 @@ export default function SessionControlPage() {
 
             <div className="mt-auto flex flex-col gap-2 pt-4 border-t-2 border-dashed border-gray-300">
               <span className="font-bold text-gray-500">Live Data</span>
-              <div className="text-3xl font-black">{Object.keys(tally).filter(k => k !== 'sum' && k !== 'n').reduce((acc, k) => acc + (tally[k] as number), 0)}</div>
+              <div className="text-3xl font-black">
+                {Object.keys(tally).filter(k => k !== 'sum' && k !== 'n').reduce((acc, k) => {
+                  const val = tally[k];
+                  const count = Array.isArray(val) ? val.length : (typeof val === 'number' ? val : 0);
+                  return acc + count;
+                }, 0)}
+              </div>
               <div className="font-bold text-sm text-gray-600">Total Votes on this slide</div>
             </div>
           </div>
