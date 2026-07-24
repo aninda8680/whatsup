@@ -25,7 +25,7 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
   if (slide.type === 'mcq_single') {
     return (
       <div className="flex flex-col gap-4">
-        {slide.options?.map((opt) => (
+        {slide.options?.map((opt, idx) => (
           <button
             key={opt.id}
             type="button"
@@ -35,13 +35,18 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
               setValue(opt.id);
               onSubmit(opt.id);
             }}
-            className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg ${
+            className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg flex items-center gap-3 md:gap-4 ${
               value === opt.id 
                 ? 'bg-brand-yellow shadow-brutal-active translate-y-1 translate-x-1' 
                 : 'bg-white shadow-brutal hover:-translate-y-0.5 hover:shadow-brutal-lg'
             } ${isSubmitting && value !== opt.id ? 'opacity-50' : ''}`}
           >
-            {opt.label}
+            <span className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full shrink-0 border-[2px] md:border-[3px] border-black text-sm md:text-base ${
+              value === opt.id ? 'bg-black text-white' : 'bg-gray-100'
+            }`}>
+              {String.fromCharCode(65 + idx)}
+            </span>
+            <span className="flex-1">{opt.label.replace(/^[A-D]\.\s*/, '')}</span>
           </button>
         ))}
       </div>
@@ -57,23 +62,25 @@ export function ResponseInput({ slide, onSubmit, isSubmitting = false }: Respons
 
     return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {slide.options?.map((opt) => {
+        {slide.options?.map((opt, idx) => {
           const isSelected = value.includes(opt.id);
           return (
             <button
               key={opt.id}
               type="button"
               onClick={() => toggleOption(opt.id)}
-              className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg flex items-center gap-3 ${
+              className={`p-3 md:p-4 text-left border-[3px] border-black transition-all font-bold text-base md:text-lg flex items-center gap-3 md:gap-4 ${
                 isSelected 
                   ? 'bg-brand-blue shadow-brutal-active translate-y-1 translate-x-1' 
                   : 'bg-white shadow-brutal hover:-translate-y-0.5 hover:shadow-brutal-lg'
               }`}
             >
-              <div className={`w-5 h-5 md:w-6 md:h-6 shrink-0 border-[2px] md:border-[3px] border-black flex items-center justify-center ${isSelected ? 'bg-black text-white' : 'bg-white'}`}>
-                {isSelected && <span>✓</span>}
-              </div>
-              {opt.label}
+              <span className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full shrink-0 border-[2px] md:border-[3px] border-black text-sm md:text-base ${
+                isSelected ? 'bg-black text-white' : 'bg-gray-100'
+              }`}>
+                {String.fromCharCode(65 + idx)}
+              </span>
+              <span className="flex-1">{opt.label.replace(/^[A-D]\.\s*/, '')}</span>
             </button>
           );
         })}

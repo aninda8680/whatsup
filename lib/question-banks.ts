@@ -177,7 +177,7 @@ function parseQuiz(text: string): Partial<Slide>[] {
         }
         currentSlide.options.push({
           id: optionId,
-          label: line.replace(' ✅', '') 
+          label: line.replace(' ✅', '').replace(/^[A-D]\.\s*/, '') 
         });
       }
     } else if (currentSlide && currentSlide.options.length === 0) {
