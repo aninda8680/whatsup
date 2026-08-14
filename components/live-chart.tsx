@@ -19,7 +19,9 @@ interface LiveChartProps {
 // Vibrant colors for the charts
 const COLORS = ['#ffde59', '#5ce1e6', '#ff66c4', '#7ed957', '#ff914d', '#a388ff', '#ff3131'];
 
-export function LiveChart({ slide, tally }: LiveChartProps) {
+const TOOLTIP_STYLE = { border: '3px solid black', borderRadius: 0, boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' };
+
+function McqChart({ slide, tally }: LiveChartProps) {
   if (!slide || !tally) return null;
 
   if (slide.type === 'mcq_single' || slide.type === 'mcq_multi') {
@@ -38,7 +40,7 @@ export function LiveChart({ slide, tally }: LiveChartProps) {
             <YAxis allowDecimals={false} tick={{ fill: 'black', fontWeight: 'bold' }} />
             <Tooltip
               cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-              contentStyle={{ border: '3px solid black', borderRadius: 0, boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}
+              contentStyle={TOOLTIP_STYLE}
             />
             <Bar dataKey="count" radius={[4, 4, 0, 0]} stroke="black" strokeWidth={3}>
               {data.map((entry, index) => (
@@ -50,6 +52,8 @@ export function LiveChart({ slide, tally }: LiveChartProps) {
       </div>
     );
   }
+  return null;
+}
 
 function WordcloudChart({ tally }: { tally: WordcloudTally }) {
   const words = Object.entries(tally.words)
