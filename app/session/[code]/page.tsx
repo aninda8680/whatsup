@@ -28,7 +28,8 @@ export default function SessionPage() {
   
   const { session, slides, loading: sessionLoading } = useSession(sessionId);
   const { liveState, loading: liveLoading } = useLiveSlide(sessionId);
-  const { tally } = useLiveTally(sessionId, liveState.currentSlideId);
+  const currentSlide = slides.find(s => s.id === liveState.currentSlideId) || null;
+  const { tally } = useLiveTally(sessionId, liveState.currentSlideId, currentSlide?.type ?? null);
   const { serverTimeOffset, getServerTime } = useServerTime();
   
   const [submitting, setSubmitting] = useState(false);
@@ -281,7 +282,7 @@ export default function SessionPage() {
     </div>;
   }
 
-  const currentSlide = slides.find(s => s.id === liveState.currentSlideId);
+  // currentSlide is already declared at the top of the component
 
   if (liveState.slideStatus === 'leaderboard') {
     return (

@@ -1,7 +1,7 @@
 import { SVGProps } from "react";
-import { motion, HTMLMotionProps } from "framer-motion";
+import { motion, SVGMotionProps } from "framer-motion";
 
-interface MascotProps extends HTMLMotionProps<"svg"> {
+interface MascotProps extends SVGMotionProps<SVGSVGElement> {
   emotion?: "happy" | "wow" | "sad";
   className?: string;
 }
