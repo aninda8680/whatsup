@@ -33,7 +33,8 @@ export function useLiveSlide(sessionId: string | null) {
         setLiveState({
           currentSlideId: data.currentSlideId || null,
           slideStatus: data.slideStatus || "locked",
-          participantCount: data.participantCount || 0,
+          // Safely derive count from the presence map keys rather than the locked count field
+          participantCount: data.presence ? Object.keys(data.presence).length : 0,
           slideStartTime: data.slideStartTime || undefined,
         });
       } else {

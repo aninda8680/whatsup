@@ -1,0 +1,55 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "live": {
+      "$sessionId": {
+        // Allow access if caller is a participant for this session OR a host (no 'participant' role)
+        ".read": "auth != null && (auth.token.allowedSession === $sessionId || auth.token.role !== 'participant')",
+
+        "presence": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (auth.token.allowedSession === $sessionId || auth.token.role !== 'participant')"
+          }
+        },
+
+        "participantCount": {
+          ".write": false
+        },
+
+        "currentSlideId": {
+          ".write": false
+        },
+
+        "slideStatus": {
+          ".write": false
+        },
+
+        "slideStartTime": {
+          ".write": false
+        },
+
+        "slides": {
+          "$slideId": {
+            "responses": {
+              "$uid": {
+                // A participant may write their own response ONCE.
+                ".write": "auth != null && auth.uid === $uid && !data.exists() && (auth.token.allowedSession === $sessionId || auth.token.role !== 'participant')"
+              }
+            },
+
+            "tally": {
+              ".read": "auth != null",
+              // WHY false: tally is written by the /api/response/submit route
+              // (Admin SDK) which bypasses these rules. No client should touch
+              // tally directly — a malicious participant could otherwise inflate
+              // their own vote or submit counts for slides they haven't answered.
+              ".write": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

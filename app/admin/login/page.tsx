@@ -23,9 +23,10 @@ export default function AdminLoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/admin/dashboard');
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to login');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to login';
+      console.error('[AdminLogin] Auth error:', message);
+      setError(message);
       setLoading(false);
     }
   };

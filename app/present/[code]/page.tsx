@@ -10,7 +10,9 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { useServerTime } from '@/hooks/useServerTime';
 import { SlideRenderer } from '@/components/slide-renderer';
-import { LiveChart } from '@/components/live-chart';
+// WHY dynamic import: recharts uses browser-only APIs (ResizeObserver).
+import { LiveChart } from '@/components/live-chart-dynamic';
+import type { Participant } from '@/lib/types';
 
 export default function PresentPage() {
   const params = useParams();
@@ -22,11 +24,13 @@ export default function PresentPage() {
   
   const { session, slides, loading: sessionLoading } = useSession(sessionId);
   const { liveState, loading: liveLoading } = useLiveSlide(sessionId);
-  const { tally } = useLiveTally(sessionId, liveState.currentSlideId);
+  const currentSlide = slides.find((s) => s.id === liveState.currentSlideId) ?? null;
+  // Pass slideType so useLiveTally can produce a correctly-shaped typed Tally.
+  const { tally } = useLiveTally(sessionId, liveState.currentSlideId, currentSlide?.type ?? null);
   const { serverTimeOffset } = useServerTime();
   
   const [timeLeft, setTimeLeft] = useState(10);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<Participant[]>([]);
 
   // Timer — 250ms interval is plenty for a 1-second countdown display
   useEffect(() => {
@@ -44,12 +48,15 @@ export default function PresentPage() {
     if (liveState.slideStatus !== 'leaderboard' || !sessionId) return;
     const fetchLeaderboard = async () => {
       try {
-        const snap = await getDocs(collection(db, 'sessions', sessionId, 'participants'));
-        const participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        participants.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        const { participantConverter } = await import('@/lib/types');
+        const snap = await getDocs(
+          collection(db, 'sessions', sessionId, 'participants').withConverter(participantConverter)
+        );
+        const participants = snap.docs.map((d) => d.data());
+        participants.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
         setLeaderboard(participants.slice(0, 10));
       } catch (err) {
-        console.error('Failed to fetch leaderboard', err);
+        console.error('[PresentPage] Failed to fetch leaderboard:', err instanceof Error ? err.message : err);
       }
     };
     fetchLeaderboard();
@@ -70,8 +77,9 @@ export default function PresentPage() {
 
         setSessionId(querySnapshot.docs[0].id);
         setInitLoading(false);
-      } catch (err: any) {
-        console.error(err);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[PresentPage] Init error:', message);
         setError('Failed to load session.');
         setInitLoading(false);
       }
@@ -121,7 +129,7 @@ export default function PresentPage() {
     );
   }
 
-  const currentSlide = slides.find(s => s.id === liveState.currentSlideId);
+  // currentSlide is derived above (before useLiveTally) so slideType can be passed in.
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

@@ -1,0 +1,98 @@
+/**
+ * firestore.rules
+ *
+ * WHY default-deny:
+ * Firebase's default rules are "allow all" in test mode and "deny all" in locked
+ * mode. Either extreme is wrong for production. We explicitly model the exact
+ * write shapes each actor is permitted to perform and deny everything else.
+ *
+ * IMPORTANT: after editing these rules, deploy them with:
+ *   firebase deploy --only firestore:rules
+ *
+ * Tally writes: tally counters live in Realtime Database (not Firestore), so
+ * there is no Firestore tally collection to lock down here. See database.rules.json.
+ */
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────────
+
+    /** True if the request comes from a signed-in Firebase Auth user. */
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    /** True if the caller's UID matches the given uid. */
+    function isUser(uid) {
+      return isAuthed() && request.auth.uid == uid;
+    }
+
+    /** True if the caller is a participant holding a valid token for this session. */
+    function isParticipantForSession(sessionId) {
+      return isAuthed() && request.auth.token.role == 'participant' && request.auth.token.allowedSession == sessionId;
+    }
+
+    /** True if the session document's ownerUid matches the caller. */
+    function isSessionOwner(sessionId) {
+      return isAuthed() &&
+        get(/databases/$(database)/documents/sessions/$(sessionId)).data.ownerUid
+          == request.auth.uid;
+    }
+
+    /** True if the session's status field is 'live'. */
+    function sessionIsLive(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId)).data.status == 'live';
+    }
+
+    // ── Entitlements ──────────────────────────────────────────────────────────
+    // Written ONLY by Firebase Admin SDK (server-side webhook handler).
+    // Hosts may read their own entitlement; no client may write.
+    match /entitlements/{hostId} {
+      allow read: if isUser(hostId);
+      allow write: if false; // Admin SDK bypasses rules — this blocks all client writes.
+    }
+
+    // ── Sessions ──────────────────────────────────────────────────────────────
+    match /sessions/{sessionId} {
+      // Owners can read their own session. Participants can read if they hold the token.
+      allow read: if isSessionOwner(sessionId) || isParticipantForSession(sessionId);
+
+      // Only the session owner may create or update a session.
+      // On create, enforce that ownerUid matches the caller (prevents spoofing).
+      allow create: if isAuthed()
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      allow update: if isSessionOwner(sessionId);
+      allow delete: if isSessionOwner(sessionId);
+
+      // ── Slides (sub-collection) ────────────────────────────────────────────
+      match /slides/{slideId} {
+        allow read: if isSessionOwner(sessionId) || isParticipantForSession(sessionId);
+        allow write: if isSessionOwner(sessionId);
+      }
+
+      // ── Participants (sub-collection) ──────────────────────────────────────
+      match /participants/{uid} {
+        // Any authenticated participant for this session may read (needed for leaderboard).
+        allow read: if isSessionOwner(sessionId) || isParticipantForSession(sessionId);
+
+        // A participant may only write their OWN doc, only while session is live,
+        // and ONLY the fields listed below — they must not touch 'score'.
+        // Score is written server-side only (via Admin SDK in the submit API route).
+        allow create: if isUser(uid)
+          && isParticipantForSession(sessionId)
+          && sessionIsLive(sessionId)
+          && request.resource.data.keys().hasOnly(['displayName', 'lastActive']);
+
+        allow update: if isUser(uid)
+          && isParticipantForSession(sessionId)
+          && sessionIsLive(sessionId)
+          // Deny any attempt to set or change 'score' from the client.
+          && !('score' in request.resource.data.diff(resource.data).affectedKeys());
+      }
+    }
+  }
+}

@@ -7,9 +7,11 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc, 
 import { onAuthStateChanged } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Session } from '@/hooks/useSession';
+import { Session } from '@/lib/types';
 import Link from 'next/link';
 import { cseecemeQuestions, cseStudentsQuestions, nonCseStudentsQuestions } from '@/lib/question-banks';
+import { Entitlement } from '@/lib/types';
+import { PRICING_TIERS } from '@/lib/pricing';
 
 function generateShortCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -23,6 +25,7 @@ function generateShortCode() {
 export default function AdminDashboard() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
@@ -40,13 +43,24 @@ export default function AdminDashboard() {
         where('ownerUid', '==', user.uid)
       );
       try {
+        // Fetch Entitlement
+        const entSnap = await getDocs(query(collection(db, 'entitlements'), where('hostId', '==', user.uid)));
+        if (!entSnap.empty) {
+          setEntitlement(entSnap.docs[0].data() as Entitlement);
+        }
+
+        // Fetch Sessions
+        const q = query(
+          collection(db, 'sessions'),
+          where('ownerUid', '==', user.uid)
+        );
         const snap = await getDocs(q);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Session));
         // Sort by createdAt descending locally
         data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
         setSessions(data);
       } catch (err) {
-        console.error("Error fetching sessions", err);
+        console.error("Error fetching dashboard data", err);
       } finally {
         setLoading(false);
       }
@@ -54,6 +68,10 @@ export default function AdminDashboard() {
 
     return () => unsubscribe();
   }, [router]);
+
+  const activeTier = entitlement && entitlement.expiresAt > Date.now() 
+    ? PRICING_TIERS[entitlement.tier] 
+    : PRICING_TIERS.free;
 
   const handleCreateSession = async (bankId: 'blank' | 'cseeceme' | 'csestudents' | 'noncsestudents') => {
     const user = auth.currentUser;
@@ -76,6 +94,8 @@ export default function AdminDashboard() {
         status: 'draft',
         currentSlideIndex: 0,
         createdAt: serverTimestamp(),
+        tier: activeTier.id,
+        participantCap: activeTier.participantCap,
         settings: {
           anonymousByDefault: true,
           allowResubmit: false
@@ -127,7 +147,20 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
         <div className="flex justify-between items-center bg-white p-6 border-[4px] border-black shadow-brutal">
-          <h1 className="text-4xl font-black">My Sessions</h1>
+          <div>
+            <h1 className="text-4xl font-black mb-2">My Sessions</h1>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-600 font-bold">Current Plan:</span>
+              <span className="bg-brand-pink text-black px-3 py-1 font-black border-2 border-black text-sm uppercase">
+                {activeTier.name} ({activeTier.participantCap} users/session)
+              </span>
+              {activeTier.id === 'free' && (
+                <Link href="/pricing" className="text-sm font-bold underline hover:text-brand-pink">
+                  Upgrade
+                </Link>
+              )}
+            </div>
+          </div>
           <Button onClick={() => setShowBankModal(true)} variant="primary" disabled={creating} size="lg">
             {creating ? 'Creating...' : '+ New Session'}
           </Button>

@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-yellow: #ffde59;
-  --color-brand-blue: #5ce1e6;
-  --color-brand-pink: #ff66c4;
-  --color-brand-green: #7ed957;
-  --color-brand-orange: #ff914d;
+  /* Premium Restrained Palette */
+  --color-brand-base: #F8F6F0; /* Alabaster neutral base */
+  --color-brand-ink: #0A0A0A; /* Near-black for text/borders */
+  --color-brand-primary: #FF2A85; /* Hot pink */
+  --color-brand-secondary: #CCFF00; /* Acid lime */
   
-  --color-background: #ffffff;
-  --color-foreground: #000000;
+  --color-background: #F8F6F0;
+  --color-foreground: #0A0A0A;
   
-  --shadow-brutal: 4px 4px 0px 0px rgba(0,0,0,1);
-  --shadow-brutal-lg: 8px 8px 0px 0px rgba(0,0,0,1);
-  --shadow-brutal-sm: 2px 2px 0px 0px rgba(0,0,0,1);
-  --shadow-brutal-active: 1px 1px 0px 0px rgba(0,0,0,1);
+  --shadow-brutal: 4px 4px 0px 0px rgba(10,10,10,1);
+  --shadow-brutal-lg: 8px 8px 0px 0px rgba(10,10,10,1);
+  --shadow-brutal-sm: 2px 2px 0px 0px rgba(10,10,10,1);
+  --shadow-brutal-active: 0px 0px 0px 0px rgba(10,10,10,1);
   
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {

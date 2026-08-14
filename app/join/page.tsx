@@ -35,17 +35,31 @@ function JoinForm() {
 
     setLoading(true);
     try {
-      // 1. Authenticate anonymously (persists across refreshes via IndexedDB)
-      await signInAnonymously(auth);
+      // 1. Validate cap and get custom token from server
+      const res = await fetch('/api/session/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), displayName: name.trim() })
+      });
+
+      const data = await res.json();
       
-      // 2. Save name in localStorage (survives tab close/refresh, unlike sessionStorage)
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to join session');
+      }
+
+      // 2. Authenticate with the custom token
+      const { signInWithCustomToken } = await import('firebase/auth');
+      await signInWithCustomToken(auth, data.token);
+      
+      // 3. Save name in localStorage (survives tab close/refresh)
       localStorage.setItem('participantName', name.trim());
       
-      // 3. Redirect to session
+      // 4. Redirect to session using the code (session/[code]/page.tsx handles the rest)
       router.push(`/session/${code.toUpperCase()}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to join session');
+      setError(err instanceof Error ? err.message : 'Failed to join session');
       setLoading(false);
     }
   };

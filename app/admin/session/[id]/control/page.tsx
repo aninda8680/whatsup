@@ -10,8 +10,10 @@ import { useSession } from '@/hooks/useSession';
 import { useLiveSlide } from '@/hooks/useLiveSlide';
 import Link from 'next/link';
 import { SlideRenderer } from '@/components/slide-renderer';
-import { LiveChart } from '@/components/live-chart';
+// WHY dynamic import: recharts uses browser-only APIs (ResizeObserver).
+import { LiveChart } from '@/components/live-chart-dynamic';
 import { useLiveTally } from '@/hooks/useLiveTally';
+import type { SlideStatus } from '@/lib/types';
 
 export default function SessionControlPage() {
   const params = useParams();
@@ -20,7 +22,10 @@ export default function SessionControlPage() {
 
   const { session, slides, loading: sessionLoading } = useSession(sessionId);
   const { liveState, loading: liveLoading } = useLiveSlide(sessionId);
-  const { tally } = useLiveTally(sessionId, liveState.currentSlideId);
+  // Derive currentSlide first so we can pass slideType to useLiveTally.
+  const currentIndex = session?.currentSlideIndex ?? 0;
+  const currentSlide = slides[currentIndex] ?? null;
+  const { tally } = useLiveTally(sessionId, liveState.currentSlideId, currentSlide?.type ?? null);
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
@@ -93,8 +98,8 @@ export default function SessionControlPage() {
     });
   };
 
-  const handleToggleStatus = async (newStatus: "open" | "locked" | "results_shown" | "leaderboard") => {
-    const updates: any = { slideStatus: newStatus };
+  const handleToggleStatus = async (newStatus: SlideStatus) => {
+    const updates: Record<string, unknown> = { slideStatus: newStatus };
     if (newStatus === 'open') {
       updates.slideStartTime = rtdbServerTimestamp();
     }
@@ -104,8 +109,7 @@ export default function SessionControlPage() {
   if (sessionLoading || liveLoading) return <div className="p-8">Loading control panel...</div>;
   if (!session) return <div className="p-8">Session not found.</div>;
 
-  const currentIndex = session.currentSlideIndex;
-  const currentSlide = slides[currentIndex];
+  // currentIndex and currentSlide are derived above (before useLiveTally hook call).
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -227,11 +231,15 @@ export default function SessionControlPage() {
             <div className="mt-auto flex flex-col gap-2 pt-4 border-t-2 border-dashed border-gray-300">
               <span className="font-bold text-gray-500">Live Data</span>
               <div className="text-3xl font-black">
-                {Object.keys(tally).filter(k => k !== 'sum' && k !== 'n').reduce((acc, k) => {
-                  const val = tally[k];
-                  const count = Array.isArray(val) ? val.length : (typeof val === 'number' ? val : 0);
-                  return acc + count;
-                }, 0)}
+                {
+                  // Compute total votes from the typed Tally discriminated union.
+                  // Each tally type stores counts differently, so we narrow by type.
+                  !tally ? 0
+                  : tally.type === 'mcq' ? Object.values(tally.counts).reduce((a, b) => a + b, 0)
+                  : tally.type === 'rating' ? tally.n
+                  : tally.type === 'wordcloud' ? Object.values(tally.words).reduce((a, b) => a + b, 0)
+                  : 0
+                }
               </div>
               <div className="font-bold text-sm text-gray-600">Total Votes on this slide</div>
             </div>
