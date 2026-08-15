@@ -87,22 +87,30 @@ export default function AdminDashboard() {
       if (bankId === 'csestudents') title = `CSE Students Quiz 🎉`;
       if (bankId === 'noncsestudents') title = `Non-CSE Students Quiz 🎉`;
       
-      const newSession = {
-        code,
-        title,
-        ownerUid: user.uid,
-        status: 'draft',
-        currentSlideIndex: 0,
-        createdAt: serverTimestamp(),
-        tier: activeTier.id,
-        participantCap: activeTier.participantCap,
-        settings: {
-          anonymousByDefault: true,
-          allowResubmit: false
-        }
-      };
+      const token = await user.getIdToken();
 
-      const docRef = await addDoc(collection(db, 'sessions'), newSession);
+      const res = await fetch('/api/session/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code,
+          title,
+          settings: {
+            anonymousByDefault: true,
+            allowResubmit: false
+          }
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create session');
+      }
+
+      const docRefId = data.sessionId;
 
       if (bankId === 'cseeceme' || bankId === 'csestudents' || bankId === 'noncsestudents') {
         let questions = cseecemeQuestions;
@@ -116,17 +124,18 @@ export default function AdminDashboard() {
             id: `slide_${i}`,
             order: i
           };
-          await setDoc(doc(db, 'sessions', docRef.id, 'slides', newSlide.id), newSlide);
+          await setDoc(doc(db, 'sessions', docRefId, 'slides', newSlide.id), newSlide);
         }
       }
 
-      router.push(`/admin/session/${docRef.id}/build`);
+      router.push(`/admin/session/${docRefId}/build`);
     } catch (err) {
       console.error(err);
       alert('Failed to create session');
       setCreating(false);
     }
   };
+
 
   const handleDeleteSession = async (sessionId: string) => {
     if (!confirm('Are you sure you want to delete this session?')) return;

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { razorpay } from '@/lib/razorpay';
 import { PRICING_TIERS } from '@/lib/pricing';
-import { Tier } from '@/lib/types';
+import { Tier, Payment } from '@/lib/types';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -30,10 +31,26 @@ export async function POST(request: Request) {
 
     const order = await razorpay.orders.create(options);
 
+    // Create payment audit log in Firestore
+    const paymentRecord: Payment = {
+      id: order.id,
+      hostId,
+      tier: tierId,
+      amount: options.amount,
+      razorpayOrderId: order.id,
+      razorpayPaymentId: null,
+      status: 'created',
+      createdAt: Date.now(),
+      verifiedAt: null,
+    };
+    
+    await adminDb.collection('payments').doc(order.id).set(paymentRecord);
+
     return NextResponse.json({
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error) {
     console.error('Checkout error:', error);
@@ -43,3 +60,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

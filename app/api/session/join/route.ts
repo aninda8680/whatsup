@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { adminDb, adminRtdb, adminAuth } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing code or name' }, { status: 400 });
     }
 
-    // 1. Look up session by code
+    // 1. Look up session by code (must be outside transaction because it's a query)
     const sessionsSnap = await adminDb
       .collection('sessions')
       .where('code', '==', code.toUpperCase())
@@ -21,32 +22,53 @@ export async function POST(request: Request) {
     }
 
     const sessionDoc = sessionsSnap.docs[0];
-    const sessionData = sessionDoc.data();
     const sessionId = sessionDoc.id;
+    const sessionRef = adminDb.collection('sessions').doc(sessionId);
 
-    if (sessionData.status !== 'live' && sessionData.status !== 'draft') {
-      return NextResponse.json({ error: 'Session has ended' }, { status: 403 });
-    }
-
-    // 2. Check participant cap
-    const participantCap = sessionData.participantCap || 25;
-    
-    // Read current presence count from RTDB
-    const presenceSnap = await adminRtdb.ref(`live/${sessionId}/presence`).once('value');
-    const presenceData = presenceSnap.val() || {};
-    const currentCount = Object.keys(presenceData).length;
-
-    if (currentCount >= participantCap) {
-      return NextResponse.json({ 
-        error: `Session is full (Limit: ${participantCap} participants)` 
-      }, { status: 403 });
-    }
-
-    // 3. Generate a Firebase Auth Custom Token for this participant
-    // We embed the sessionId into the token claims so security rules can lock them to this session.
-    // We create a deterministic UID based on session + random ID to keep it unique but identifiable.
+    // Generate a Firebase Auth Custom Token for this participant
     const uid = `anon_${sessionId}_${Math.random().toString(36).substring(2, 9)}`;
-    
+    const participantRef = sessionRef.collection('participants').doc(uid);
+
+    try {
+      // 2. Transactional check and increment
+      await adminDb.runTransaction(async (t) => {
+        const snap = await t.get(sessionRef);
+        if (!snap.exists) {
+          throw new Error('NOT_FOUND');
+        }
+
+        const data = snap.data()!;
+        if (data.status !== 'live' && data.status !== 'draft') {
+          throw new Error('ENDED');
+        }
+
+        const cap = data.participantCap || 25;
+        const currentCount = data.participantCount || 0;
+
+        if (currentCount >= cap) {
+          throw new Error('SESSION_FULL');
+        }
+
+        t.update(sessionRef, {
+          participantCount: FieldValue.increment(1)
+        });
+
+        t.set(participantRef, {
+          id: uid,
+          displayName,
+          score: 0,
+          lastActive: FieldValue.serverTimestamp()
+        });
+      });
+    } catch (e: any) {
+      if (e.message === 'SESSION_FULL') {
+        return NextResponse.json({ error: 'SESSION_FULL' }, { status: 403 });
+      } else if (e.message === 'ENDED') {
+        return NextResponse.json({ error: 'Session has ended' }, { status: 403 });
+      }
+      throw e;
+    }
+
     const customToken = await adminAuth.createCustomToken(uid, {
       allowedSession: sessionId,
       role: 'participant'
@@ -63,3 +85,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to join session' }, { status: 500 });
   }
 }
+

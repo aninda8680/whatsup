@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { PRICING_TIERS } from '@/lib/pricing';
-import { Tier, Entitlement } from '@/lib/types';
+import { Tier, Entitlement, Payment } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
@@ -19,25 +19,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    // Verify signature
+    // Verify signature using constant-time comparison
     const expectedSignature = crypto
       .createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('hex');
 
-    if (expectedSignature !== signature) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+    const signatureBuffer = Buffer.from(signature, 'hex');
+
+    if (expectedBuffer.length !== signatureBuffer.length || !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)) {
+      console.warn('Webhook signature mismatch');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     const event = JSON.parse(rawBody);
 
     // We only care about successful payments
     if (event.event === 'payment.captured') {
-      const payment = event.payload.payment.entity;
-      const { hostId, tierId } = payment.notes;
+      const paymentData = event.payload.payment.entity;
+      const orderId = paymentData.order_id;
+      
+      if (!orderId) {
+         console.error('Webhook payload missing order_id');
+         return NextResponse.json({ received: true });
+      }
+
+      // Idempotency check
+      const paymentRef = adminDb.collection('payments').doc(orderId);
+      const paymentSnap = await paymentRef.get();
+      
+      if (paymentSnap.exists) {
+        const p = paymentSnap.data() as Payment;
+        if (p.status === 'verified') {
+          console.log(`Order ${orderId} already verified. Ignoring duplicate webhook.`);
+          return NextResponse.json({ received: true });
+        }
+      }
+
+      const { hostId, tierId } = paymentData.notes;
 
       if (!hostId || !tierId) {
-        console.error('Payment captured without hostId or tierId in notes:', payment.id);
+        console.error('Payment captured without hostId or tierId in notes:', paymentData.id);
         return NextResponse.json({ received: true });
       }
 
@@ -56,16 +79,25 @@ export async function POST(request: Request) {
         participantCap: tier.participantCap,
         purchasedAt: now,
         expiresAt,
-        paymentId: payment.id,
+        status: 'active',
+        lastPaymentId: paymentData.id,
       };
 
-      // Write to Firestore securely via Admin SDK.
-      // We use setDoc (which is essentially .set()) to overwrite or create.
-      // This is idempotent because Razorpay sends payment.captured only once per payment usually,
-      // and if it retries, it writes the same data.
-      await adminDb.collection('entitlements').doc(hostId).set(entitlement);
+      // Batch write to update both payment and entitlement transactionally (or atomically)
+      const batch = adminDb.batch();
+      
+      batch.update(paymentRef, {
+        status: 'verified',
+        razorpayPaymentId: paymentData.id,
+        verifiedAt: now
+      });
 
-      console.log(`Entitlement granted for ${hostId}: ${tier.name}`);
+      const entitlementRef = adminDb.collection('entitlements').doc(hostId);
+      batch.set(entitlementRef, entitlement);
+
+      await batch.commit();
+
+      console.log(`Entitlement granted for ${hostId}: ${tier.name} via order ${orderId}`);
     }
 
     return NextResponse.json({ received: true });
@@ -77,3 +109,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

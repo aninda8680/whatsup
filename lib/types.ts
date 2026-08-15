@@ -172,13 +172,16 @@ export const participantConverter: FirestoreDataConverter<Participant> = {
  * Written server-side only (via Firebase Admin SDK in the payment webhook).
  * Clients may READ their own entitlement doc; writes are blocked by Firestore rules.
  */
+export type EntitlementStatus = 'active' | 'expired' | 'none';
+
 export interface Entitlement {
   hostId: string;
   tier: Tier;
   participantCap: number;
-  purchasedAt: number; // Unix ms
-  expiresAt: number;   // Unix ms
-  paymentId: string;   // Razorpay payment ID (also acts as idempotency key)
+  purchasedAt: number | null; // Unix ms
+  expiresAt: number | null;   // Unix ms
+  status: EntitlementStatus;
+  lastPaymentId: string | null;
 }
 
 export const entitlementConverter: FirestoreDataConverter<Entitlement> = {
@@ -194,9 +197,50 @@ export const entitlementConverter: FirestoreDataConverter<Entitlement> = {
       hostId: data.hostId ?? snapshot.id,
       tier: (data.tier as Tier) ?? 'free',
       participantCap: data.participantCap ?? 25,
-      purchasedAt: data.purchasedAt ?? 0,
-      expiresAt: data.expiresAt ?? 0,
-      paymentId: data.paymentId ?? '',
+      purchasedAt: data.purchasedAt ?? null,
+      expiresAt: data.expiresAt ?? null,
+      status: (data.status as EntitlementStatus) ?? 'none',
+      lastPaymentId: data.lastPaymentId ?? null,
+    };
+  },
+};
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+export type PaymentStatus = 'created' | 'paid' | 'failed' | 'verified';
+
+export interface Payment {
+  id: string; // Razorpay Order ID
+  hostId: string;
+  tier: string;
+  amount: number; // in paise
+  razorpayOrderId: string;
+  razorpayPaymentId: string | null;
+  status: PaymentStatus;
+  createdAt: number; // Unix ms
+  verifiedAt: number | null; // Unix ms
+}
+
+export const paymentConverter: FirestoreDataConverter<Payment> = {
+  toFirestore(p: Payment): DocumentData {
+    const { id: _id, ...data } = p;
+    return data;
+  },
+  fromFirestore(
+    snapshot: QueryDocumentSnapshot,
+    options?: SnapshotOptions
+  ): Payment {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      hostId: data.hostId ?? '',
+      tier: data.tier ?? '',
+      amount: data.amount ?? 0,
+      razorpayOrderId: data.razorpayOrderId ?? '',
+      razorpayPaymentId: data.razorpayPaymentId ?? null,
+      status: (data.status as PaymentStatus) ?? 'created',
+      createdAt: data.createdAt ?? 0,
+      verifiedAt: data.verifiedAt ?? null,
     };
   },
 };

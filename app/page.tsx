@@ -26,18 +26,20 @@ export default function Home() {
     }
   };
 
+  const [isFlipped, setIsFlipped] = useState(false);
+
   return (
     <div className="min-h-screen bg-brand-ink bg-[url('/bg.png')] bg-cover bg-center text-brand-ink selection:bg-brand-primary selection:text-white flex flex-col gap-8 px-12 md:px-24 lg:px-32 xl:px-48 pb-12 pt-7 font-sans">
       
       {/* ── Navigation ── */}
       <nav className="w-full flex justify-between items-center py-3 px-6 md:py-4 md:px-10 bg-brand-base rounded-full border-[2px] border-brand-ink z-50 sticky top-7 shadow-brutal">
-        <Link href="/" className="text-3xl font-display font-black tracking-tight flex items-center gap-3 group">
+        <Link href="/" onClick={() => setIsFlipped(false)} className="text-3xl font-display font-black tracking-tight flex items-center gap-3 group">
           <Mascot className="w-8 h-8 group-hover:rotate-12 transition-transform duration-300" />
           WHAT'S UP!
         </Link>
         <div className="flex gap-4 items-center">
           <div className="hidden md:flex gap-6 mr-4 text-sm font-bold uppercase tracking-widest">
-            <Link href="/pricing" className="hover:text-brand-primary transition-colors">Pricing</Link>
+            <button onClick={() => setIsFlipped(true)} className="hover:text-brand-primary transition-colors uppercase font-bold tracking-widest">Pricing</button>
             <Link href="/contact" className="hover:text-brand-primary transition-colors">Contact</Link>
           </div>
           <Link href="/admin/login">
@@ -48,66 +50,124 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* ── Hero Section ── */}
-      <main className="w-full px-6 md:px-16 xl:px-32 2xl:px-48 py-24 md:py-32 flex flex-col lg:flex-row items-center justify-between gap-20 bg-brand-secondary rounded-[2.5rem] md:rounded-[3rem] border-[2px] border-brand-ink relative overflow-hidden">
-        
-        {/* Left: Copy & CTA */}
-        <div className="w-full lg:w-[55%] flex flex-col items-start text-left z-20">
-          <motion.h1 
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="text-7xl md:text-8xl lg:text-9xl font-display font-black tracking-tighter mb-8 leading-[0.9]"
-          >
-            WAKE UP <br/> YOUR ROOM.
-          </motion.h1>
+      {/* ── Hero Section (Flippable) ── */}
+      <div className="w-full relative [perspective:2000px] z-20">
+        <motion.div 
+          animate={{ rotateY: isFlipped ? 180 : 0 }}
+          transition={{ duration: 0.8, type: "spring", stiffness: 45, damping: 15 }}
+          className="w-full relative [transform-style:preserve-3d]"
+        >
+          
+          {/* Front Face */}
+          <main className="w-full px-6 md:px-16 xl:px-32 2xl:px-48 py-24 md:py-40 flex flex-col lg:flex-row items-center justify-between gap-20 bg-brand-secondary rounded-[2.5rem] md:rounded-[3rem] border-[2px] border-brand-ink relative overflow-hidden [backface-visibility:hidden]">
+            
+            {/* Left: Copy & CTA */}
+            <div className="w-full lg:w-[55%] flex flex-col items-start text-left z-20">
+              <motion.h1 
+                initial="hidden"
+                animate="visible"
+                variants={fadeUp}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="text-7xl md:text-8xl lg:text-9xl font-display font-black tracking-tighter mb-8 leading-[0.9]"
+              >
+                WAKE UP <br/> YOUR ROOM.
+              </motion.h1>
 
-          <motion.p 
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="text-xl md:text-2xl font-medium mb-12 text-gray-800 max-w-lg leading-relaxed"
-          >
-            Turn silent classrooms and dead events into fierce, interactive live games and polls in seconds.
-          </motion.p>
+              <motion.p 
+                initial="hidden"
+                animate="visible"
+                variants={fadeUp}
+                transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="text-xl md:text-2xl font-medium mb-12 text-gray-800 max-w-lg leading-relaxed"
+              >
+                Turn silent classrooms and dead events into fierce, interactive live games and polls in seconds.
+              </motion.p>
+            </div>
 
-          <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-md bg-white p-8 border-[2px] border-brand-ink rounded-3xl shadow-brutal flex flex-col gap-6 relative"
-          >
-            <h2 className="text-sm font-bold uppercase tracking-widest text-brand-ink">Joining a session?</h2>
-            <form onSubmit={handleJoin} className="flex gap-3">
-              <Input 
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="ROOM CODE" 
-                className="flex-1 text-2xl h-16 font-display font-black uppercase tracking-widest border-[3px] border-brand-ink rounded-xl text-center focus-visible:ring-offset-0 focus-visible:ring-brand-primary"
-                maxLength={6}
-              />
-              <Button type="submit" className="h-16 px-8 text-lg font-bold uppercase tracking-widest bg-brand-primary text-white border-[3px] border-brand-ink rounded-xl shadow-brutal hover:shadow-brutal-active hover:translate-y-[2px] transition-all shrink-0">
-                Join
-              </Button>
-            </form>
-          </motion.div>
-        </div>
+            {/* Right: Interactive Demo & Join Card */}
+            <div className="w-full lg:w-[45%] flex flex-col items-center justify-center lg:justify-end z-20 lg:mt-16 xl:mt-24 relative pt-16 lg:pt-0">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="lg:absolute lg:-top-48 lg:-right-4 xl:-right-12 z-30 w-full max-w-md lg:w-[320px] bg-white p-6 md:p-8 border-[2px] border-brand-ink rounded-3xl shadow-brutal flex flex-col gap-4 lg:rotate-[12deg] mb-12 lg:mb-0 origin-bottom-left"
+              >
+                <h2 className="text-sm font-bold uppercase tracking-widest text-brand-ink">Joining a session?</h2>
+                <form onSubmit={handleJoin} className="flex gap-3 lg:gap-2">
+                  <Input 
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="CODE" 
+                    className="flex-1 text-2xl lg:text-xl h-16 lg:h-14 font-display font-black uppercase tracking-widest border-[3px] border-brand-ink rounded-xl text-center focus-visible:ring-offset-0 focus-visible:ring-brand-primary"
+                    maxLength={6}
+                  />
+                  <Button type="submit" className="h-16 lg:h-14 px-8 lg:px-6 text-lg lg:text-base font-bold uppercase tracking-widest bg-brand-primary text-white border-[3px] border-brand-ink rounded-xl shadow-brutal hover:shadow-brutal-active hover:translate-y-[2px] transition-all shrink-0">
+                    Join
+                  </Button>
+                </form>
+              </motion.div>
 
-        {/* Right: Interactive Demo */}
-        <div className="w-full lg:w-[45%] flex justify-center lg:justify-end z-20 lg:-mt-48 xl:-mt-64">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-lg"
-          >
-            <LivePollDemo />
-          </motion.div>
-        </div>
-      </main>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full max-w-lg"
+              >
+                <LivePollDemo />
+              </motion.div>
+            </div>
+          </main>
+
+          {/* Back Face (Pricing) */}
+          <main className="w-full absolute inset-0 px-6 py-12 md:py-20 flex flex-col items-center bg-[#FFE600] rounded-[2.5rem] md:rounded-[3rem] border-[2px] border-brand-ink [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-y-auto">
+             <div className="w-full max-w-7xl flex justify-between items-center mb-8 px-4 md:px-8">
+               <h2 className="text-4xl md:text-7xl font-display font-black tracking-tight">PRICING</h2>
+               <Button 
+                 onClick={() => setIsFlipped(false)} 
+                 variant="outline" 
+                 className="h-12 px-6 border-[3px] shadow-brutal font-bold uppercase flex items-center gap-2 bg-white"
+               >
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                   <path d="M15 18l-6-6 6-6" />
+                 </svg>
+                 Back
+               </Button>
+             </div>
+             
+             <p className="text-xl md:text-2xl font-bold mb-10 text-center max-w-2xl px-4">
+               Pay per event. Each pass lasts 7 days.
+             </p>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full max-w-7xl px-4 md:px-8 pb-12">
+               {/* Minimal Mini Pricing Cards */}
+               <MiniPricingCard 
+                  name="FREE" price="₹0" cap="25 participants" color="bg-[#E2F1E7]" 
+                  onClick={() => router.push('/pricing')}
+               />
+               <MiniPricingCard 
+                  name="STARTER" price="₹99" cap="50 participants" color="bg-brand-base" 
+                  onClick={() => router.push('/pricing')}
+               />
+               <MiniPricingCard 
+                  name="EVENT" price="₹199" cap="200 participants" color="bg-brand-pink" highlight 
+                  onClick={() => router.push('/pricing')}
+               />
+               <MiniPricingCard 
+                  name="FEST" price="₹399" cap="500+ participants" color="bg-white" 
+                  onClick={() => router.push('/pricing')}
+               />
+             </div>
+             
+             <div className="mt-auto pt-4">
+               <Button onClick={() => router.push('/pricing')} className="h-16 px-12 text-xl font-bold uppercase tracking-widest bg-brand-ink text-white border-[3px] border-brand-ink rounded-full shadow-brutal hover:shadow-brutal-active hover:-translate-y-1 transition-all">
+                 Go to Full Pricing Page
+               </Button>
+             </div>
+          </main>
+
+        </motion.div>
+      </div>
+
 
       {/* ── How It Works ── */}
       <section className="w-full bg-[#93C5FD] border-[2px] border-brand-ink rounded-[2.5rem] md:rounded-[3rem] py-24 px-6 md:px-12 relative overflow-hidden">
@@ -297,3 +357,14 @@ function CloudIcon() {
     </svg>
   );
 }
+
+function MiniPricingCard({ name, price, cap, color, highlight, onClick }: any) {
+  return (
+    <div onClick={onClick} className={`flex flex-col items-center justify-center p-6 border-[3px] border-brand-ink rounded-[2rem] shadow-brutal hover:shadow-brutal-active hover:-translate-y-1 transition-all cursor-pointer ${color} ${highlight ? 'ring-4 ring-brand-ink' : ''}`}>
+      <h3 className="text-xl font-display font-black tracking-tight mb-2">{name}</h3>
+      <div className="text-3xl font-black tracking-tighter mb-2">{price}</div>
+      <div className="text-sm font-bold uppercase tracking-widest text-center opacity-80">{cap}</div>
+    </div>
+  );
+}
+
